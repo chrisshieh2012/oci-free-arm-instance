@@ -18,18 +18,27 @@ jobs:
           curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
           chmod +x install.sh
           ./install.sh --accept-all-defaults
-          echo "/home/runner/bin" >> $GITHUB_PATH
+          echo "$HOME/bin" >> $GITHUB_PATH
 
-      - name: Install and Configure OCI CLI via Environment Variables
-        uses: oracle-actions/install-oci-cli@v1
-        with:
-          oci-cli-version: '3.48.0'
+      - name: Configure OCI CLI
         env:
-          OCI_CLI_USER: ${{ secrets.OCI_USER }}               # 用户 OCID
-          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}         # 租户 OCID
-          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }} # API 密钥指纹
-          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }} # API 私钥内容
-          OCI_CLI_REGION: ${{ secrets.OCI_REGION }}           # 区域 (如 ap-singapore-1)
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_REGION: ${{ secrets.OCI_REGION }}
+        run: |
+          mkdir -p ~/.oci
+          # 将私钥内容写入文件（注意：需要将多行私钥转换为正确格式）
+          echo "$OCI_PRIVATE_KEY" > ~/.oci/private_key.pem
+          chmod 600 ~/.oci/private_key.pem
+          # 创建配置文件，使用 key_file 而不是 key_content
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=$OCI_USER" >> ~/.oci/config
+          echo "tenancy=$OCI_TENANCY" >> ~/.oci/config
+          echo "fingerprint=$OCI_FINGERPRINT" >> ~/.oci/config
+          echo "region=$OCI_REGION" >> ~/.oci/config
+          echo "key_file=~/.oci/private_key.pem" >> ~/.oci/config
 
       - name: Launch VM Instance
         id: launch
