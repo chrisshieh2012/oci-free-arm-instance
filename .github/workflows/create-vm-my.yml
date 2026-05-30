@@ -13,20 +13,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      # 安装并缓存 OCI CLI，加速后续运行
       - name: Install OCI CLI
-        id: install-oci-cli
-        uses: oracle-actions/install-oci-cli@v1
-        with:
-          oci-cli-version: '3.48.0'
-
-      # 将 OCI CLI 添加到 PATH
-      - name: Add OCI CLI to PATH
-        run: echo "$HOME/bin" >> $GITHUB_PATH
-
-      # 配置 OCI CLI (使用 GitHub Secrets)
-      - name: Configure OCI CLI
+        run: |
+          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          chmod +x install.sh
+          ./install.sh --accept-all-defaults
+          echo "/home/runner/bin" >> $GITHUB_PATH
+      - name: Run OCI commands
         env:
           OCI_CLI_USER: ${{ secrets.OCI_USER }}               # 用户 OCID
           OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}         # 租户 OCID
