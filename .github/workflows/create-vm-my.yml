@@ -1,0 +1,28 @@
+name: Create OCI ARM Instance
+on:
+  schedule:
+    # 每隔10分钟自动运行一次
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # 这个选项可以让你在网页上手动触发
+jobs:
+  create-instance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Install OCI CLI
+        run: |
+          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          chmod +x install.sh
+          ./install.sh --accept-all-defaults
+          echo "/home/runner/bin" >> $GITHUB_PATH
+      - name: Run OCI commands
+        env:
+          OCI_CLI_USER: ${{ secrets.OCI_USER }}
+          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}
+          # 更多环境变量...
+        run: |
+          oci compute instance launch \
+            --availability-domain "your-AD" \
+            --compartment-id "$OCI_CLI_TENANCY" \
+            # ... 其他参数
