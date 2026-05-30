@@ -1,27 +1,31 @@
-name: Create OCI ARM Instance
+name: Try to Create OCI VM
 
 on:
   schedule:
+    # 每15分钟自动运行一次，持续尝试创建，直到成功
     - cron: '*/15 * * * *'
-  workflow_dispatch:
+  workflow_dispatch:    # 允许在 GitHub Actions 页面手动触发
 
 jobs:
-  create-instance:
+  create-oci-vm:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
       - name: Install OCI CLI
-        uses: oracle-actions/install-oci-cli@v1
-        with:
-          oci-cli-version: '3.48.0'
-
-      - name: Configure OCI CLI
+        run: |
+          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
+          chmod +x install.sh
+          ./install.sh --accept-all-defaults
+          echo "/home/runner/bin" >> $GITHUB_PATH
+      - name: Run OCI commands
         env:
-          OCI_USER: ${{ secrets.OCI_USER }}
-          OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
-          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
-          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
-          OCI_REGION: ${{ secrets.OCI_REGION }}
+          OCI_CLI_USER: ${{ secrets.OCI_USER }}               # 用户 OCID
+          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}         # 租户 OCID
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }} # API 密钥指纹
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }} # API 私钥内容
+          OCI_CLI_REGION: ${{ secrets.OCI_REGION }}           # 区域 (如 ap-singapore-1)
         run: |
           mkdir -p ~/.oci
           echo "[DEFAULT]" > ~/.oci/config
