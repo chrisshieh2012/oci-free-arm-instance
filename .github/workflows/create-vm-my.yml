@@ -1,28 +1,66 @@
-name: Create OCI ARM Instance
+name: Try to Create OCI VM
+
 on:
   schedule:
-    # 每隔10分钟自动运行一次
+    # 每10分钟自动运行一次，持续尝试创建，直到成功
     - cron: '*/10 * * * *'
-  workflow_dispatch: # 这个选项可以让你在网页上手动触发
+  workflow_dispatch:    # 允许在 GitHub Actions 页面手动触发
+
 jobs:
-  create-instance:
+  create-oci-vm:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # 安装并缓存 OCI CLI，加速后续运行
       - name: Install OCI CLI
-        run: |
-          curl -L -O https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh
-          chmod +x install.sh
-          ./install.sh --accept-all-defaults
-          echo "/home/runner/bin" >> $GITHUB_PATH
-      - name: Run OCI commands
+        id: install-oci-cli
+        uses: oracle-actions/install-oci-cli@v1
+        with:
+          oci-cli-version: '3.48.0'
+
+      # 将 OCI CLI 添加到 PATH
+      - name: Add OCI CLI to PATH
+        run: echo "$HOME/bin" >> $GITHUB_PATH
+
+      # 配置 OCI CLI (使用 GitHub Secrets)
+      - name: Configure OCI CLI
         env:
-          OCI_CLI_USER: ${{ secrets.OCI_USER }}
-          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}
-          # 更多环境变量...
+          OCI_CLI_USER: ${{ secrets.OCI_USER }}               # 用户 OCID
+          OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY }}         # 租户 OCID
+          OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }} # API 密钥指纹
+          OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }} # API 私钥内容
+          OCI_CLI_REGION: ${{ secrets.OCI_REGION }}           # 区域 (如 ap-singapore-1)
+        run: |
+          mkdir -p ~/.oci
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=${OCI_USER}" >> ~/.oci/config
+          echo "tenancy=${OCI_TENANCY}" >> ~/.oci/config
+          echo "fingerprint=${OCI_FINGERPRINT}" >> ~/.oci/config
+          echo "region=${OCI_REGION}" >> ~/.oci/config
+          echo "key_content=${OCI_PRIVATE_KEY}" >> ~/.oci/config
+
+      # 创建虚拟机实例
+      - name: Create VM Instance
+        id: create-instance
+        continue-on-error: true
+        env:
+          # ----- 请填写你的实际 OCID，这些值应当从 GitHub Secrets 中读取 -----
+          COMPARTMENT_ID: ${{ secrets.OCI_TENANCY }}          # 区间 OCID (通常与租户 OCID 相同)
+          SUBNET_ID: ${{ secrets.OCI_SUBNET }}                # 子网 OCID (必需)
+          # VCN_ID: ${{ secrets.OCI_VCN_ID }}                    # VCN OCID (可选，CLI 命令中未直接使用，仅作参考)
+          # ----- 以下为其他必要参数，请根据你的实际情况填写 -----
+          SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}          # SSH 公钥
         run: |
           oci compute instance launch \
-            --availability-domain "your-AD" \
-            --compartment-id "$OCI_CLI_TENANCY" \
-            # ... 其他参数
+            --availability-domain "${AD_NAME}" \
+            --compartment-id "${COMPARTMENT_ID}" \
+            --shape "VM.Standard.A1.Flex" \
+            --display-name "chris-vm" \
+            --image-id "${IMAGE_ID}" \
+            --subnet-id "${SUBNET_ID}" \
+            --assign-public-ip true \
+            --ssh-authorized-keys-file <(echo "${SSH_PUBLIC_KEY}") \
+            --boot-volume-size-in-gbs 100
