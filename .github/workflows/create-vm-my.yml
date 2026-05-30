@@ -45,6 +45,8 @@ jobs:
           AD_NAME: ${{ secrets.AD_NAME }}
           SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
         run: |
+          # 将公钥写入临时文件
+          echo "$SSH_PUBLIC_KEY" > /tmp/ssh_key.pub
           oci compute instance launch \
             --availability-domain "${AD_NAME}" \
             --compartment-id "${COMPARTMENT_ID}" \
@@ -53,7 +55,7 @@ jobs:
             --image-id "${IMAGE_ID}" \
             --subnet-id "${SUBNET_ID}" \
             --assign-public-ip true \
-            --ssh-authorized-keys "${SSH_PUBLIC_KEY}" \
+            --ssh-authorized-keys-file /tmp/ssh_key.pub \
 
       - name: Check success
         if: steps.launch.outcome == 'success'
