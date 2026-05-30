@@ -39,6 +39,8 @@ jobs:
           echo "fingerprint=$OCI_FINGERPRINT" >> ~/.oci/config
           echo "region=$OCI_REGION" >> ~/.oci/config
           echo "key_file=~/.oci/private_key.pem" >> ~/.oci/config
+          chmod 600 ~/.oci/config
+          oci setup repair-file-permissions --file ~/.oci/config || true
 
       - name: Launch VM Instance
         id: launch
